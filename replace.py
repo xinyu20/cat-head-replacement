@@ -36,7 +36,7 @@ for (x, y, w, h) in faces:
 
     # 計算人臉中心點和新的尺寸（放大 30%）
     face_center_x, face_center_y = x + w // 2, y + h // 2
-    new_w, new_h = int(w * 1.3), int(h * 1.3)
+    new_w, new_h = int(w * 1.5), int(h * 1.5)
 
     # 調整貓臉大小
     resized_cat = cat_face.resize((new_w, new_h), Image.LANCZOS)
@@ -44,13 +44,6 @@ for (x, y, w, h) in faces:
     # 計算貓臉放置位置（讓貓臉中心與人臉中心對齊）
     top_left_x = face_center_x - new_w // 2
     top_left_y = face_center_y - new_h // 2
-
-    # 在原圖上添加一個圓形遮罩，遮住原本人臉
-    draw = ImageDraw.Draw(image_pil)
-    draw.ellipse(
-        [x - 10, y - 10, x + w + 10, y + h + 10],  # 稍微擴大遮罩區域
-        fill=(0, 0, 0, 0)  # 透明填充
-    )
 
     # 提取透明遮罩
     cat_mask = resized_cat.split()[3]  # 第 3 通道是透明度
