@@ -7,7 +7,7 @@ from PIL import Image, ImageDraw
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 # 路徑設定
-input_image_path = "photoo.jpg"  # 原始圖片路徑
+input_image_path = "photo.jpg"  # 原始圖片路徑
 cat_faces_dir = "cat_faces"  # 貓臉素材庫資料夾
 output_image_path = "output.jpg"  # 輸出圖片路徑
 
