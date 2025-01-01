@@ -215,7 +215,7 @@ def open_file():
 
 # 建立主介面
 root = tk.Tk()
-root.title("piyan")
+root.title("cat face replacing")
 root.geometry("500x500")
 
 # 標題
