@@ -9,6 +9,8 @@ import threading
 
 # 儲存按鈕的全域變數
 save_btn = None
+loading_canvas = None
+
 # 設定貓臉素材路徑
 cat_faces_dir = "cat_faces"
 cat_faces = [os.path.join(cat_faces_dir, f) for f in os.listdir(cat_faces_dir) if f.endswith(".png")]
@@ -20,17 +22,25 @@ if not cat_faces:
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 
 def process_file(file_path):
+    show_loading()  # 顯示 Loading 標示
     file_ext = file_path.split('.')[-1].lower()
-    if file_ext in ["jpg", "jpeg", "png"]:
-        result = process_image(file_path)  # 回傳影像物件
-        show_image(result)  # 顯示圖片
-        show_save_button(result, is_image=True)  # 傳遞影像物件
-    elif file_ext in ["mp4", "avi", "mov"]:
-        processed_frames, meta = process_video(file_path)  # 處理影片
-        play_video_frames(processed_frames)  # 播放影片影格
-        show_save_button(processed_frames, is_image=False, video_meta=meta)  # 傳遞影格
-    else:
-        messagebox.showerror("錯誤", "不支援的檔案格式！")
+
+    def process():
+        try:
+            if file_ext in ["jpg", "jpeg", "png"]:
+                result = process_image(file_path)  # 回傳影像物件
+                show_image(result)  # 顯示圖片
+                show_save_button(result, is_image=True)  # 傳遞影像物件
+            elif file_ext in ["mp4", "avi", "mov"]:
+                processed_frames, meta = process_video(file_path)  # 處理影片
+                play_video_frames(processed_frames)  # 播放影片影格
+                show_save_button(processed_frames, is_image=False, video_meta=meta)  # 傳遞影格
+            else:
+                messagebox.showerror("錯誤", "不支援的檔案格式！")
+        finally:
+            hide_loading() # 處理完成後隱藏 Loading 標示
+    
+    threading.Thread(target=process, daemon=True).start()  # 使用執行緒執行處理
 
 
 
@@ -111,8 +121,6 @@ def process_video(file_path):
     return processed_frames, (frame_width, frame_height, fps)  # 回傳影格與影片資訊
 
 
-
-
 def play_video_frames(frames):
     # 最大顯示尺寸（例如 500x400）
     max_width, max_height = 500, 400
@@ -172,14 +180,14 @@ def show_save_button(result, is_image=True, video_meta=None):
                 messagebox.showinfo("完成", f"影片已儲存至：{save_path}")
 
     # 創建新的儲存按鈕
-    save_btn = tk.Button(root, text="儲存檔案", command=save_file, font=("Arial", 12))
-    save_btn.pack(pady=10)
+    save_btn = tk.Button(root, text="儲存", command=save_file, font=("Arial", 12))
+    save_btn.pack(after=loading_canvas, pady=10)  # 確保儲存按鈕在 Loading 標示下方
 
     # print("儲存按鈕已建立")  # 調試訊息
 
 
 def show_image(image):
-    # 如果傳入的是檔案路徑（舊邏輯），保留兼容性
+    # 如果傳入的是檔案路徑，保留兼容性
     if isinstance(image, str):  # 如果傳入的是檔案路徑
         result_img = Image.open(image)
     else:  # 傳入的是已處理的 Pillow 影像物件
@@ -193,16 +201,52 @@ def show_image(image):
     result_label.image = img_tk
     result_label.pack()
 
-# # 顯示處理後的圖片
-# def show_image(image_path):
-#     result_img = Image.open(image_path)
-#     result_img.thumbnail((500, 400))  # 縮放圖片以適應介面大小
-#     img_tk = ImageTk.PhotoImage(result_img)
+def show_loading():
+    global loading_canvas, result_label
+    # 如果儲存按鈕已存在，隱藏它
+    if save_btn is not None:
+        save_btn.pack_forget()
 
-#     # 更新顯示區域
-#     result_label.config(image=img_tk)
-#     result_label.image = img_tk
-#     result_label.pack()
+    # 清空先前的圖片或影片
+    result_label.config(image="")
+    result_label.image = None
+
+    loading_canvas = tk.Canvas(root, width=100, height=100)
+    loading_canvas.pack(pady=10)
+
+    # 初始化動畫參數
+    radius = 8
+    center_x, center_y = 50, 50
+    angle = 0
+    points = []
+
+    # 繪製圓點
+    for i in range(8):
+        x = center_x + 30 * np.cos(angle)
+        y = center_y + 30 * np.sin(angle)
+        points.append(loading_canvas.create_oval(x - radius, y - radius, x + radius, y + radius, fill="blue"))
+        angle += np.pi / 4
+
+    def animate():
+        # 每次移動圓點顏色
+        for i, point in enumerate(points):
+            loading_canvas.itemconfig(point, fill="black" if i != 0 else "gray")
+        points.append(points.pop(0))  # 移動顏色
+        loading_canvas.after(100, animate)
+
+    animate()
+
+def hide_loading():
+    global loading_canvas
+    if loading_canvas:
+        loading_canvas.destroy()
+        loading_canvas = None
+        
+    # 恢復顯示儲存按鈕
+    if save_btn is not None:
+        save_btn.pack(pady=10)
+
+
 
 # 開啟檔案
 def open_file():
@@ -215,7 +259,7 @@ def open_file():
 
 # 建立主介面
 root = tk.Tk()
-root.title("cat face replacing")
+root.title("Cat face replacing")
 root.geometry("500x500")
 
 # 標題
@@ -223,7 +267,7 @@ title_label = tk.Label(root, text="上傳圖片或影片進行貓咪換臉", fon
 title_label.pack(pady=20)
 
 # 選擇檔案按鈕
-upload_btn = tk.Button(root, text="選擇", command=open_file, font=("Arial", 12))
+upload_btn = tk.Button(root, text="選擇檔案", command=open_file, font=("Arial", 12))
 upload_btn.pack(pady=10)
 
 # 結果顯示區域
